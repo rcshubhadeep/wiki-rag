@@ -11,7 +11,11 @@
   "dependencies": {
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.4"
+    "next": "15.5.4",
+    "drizzle-orm": "^0.31.2",
+    "drizzle-zod": "^0.5.1",
+    "postgres": "^3.4.4",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "typescript": "^5",
@@ -22,6 +26,7 @@
     "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
-    "@eslint/eslintrc": "^3"
+    "@eslint/eslintrc": "^3",
+    "pg": "^8.12.0"
   }
 }
