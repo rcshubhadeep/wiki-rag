@@ -35,7 +35,7 @@ export const wikiPages = pgTable('wiki_pages', {
 });
 
 // --- Chunks table ----------------------------------------------------------
-// Adjust `dimensions` to match your embedding model.
+// Adjust `dimensions` to match embedding model.
 const EMBEDDING_DIM: number = env.EMBEDDING_DIM;
 
 export const wikiChunks = pgTable(
@@ -54,12 +54,6 @@ export const wikiChunks = pgTable(
     return {
       // Useful filter index by page
       pageIdIdx: index('wiki_chunks_page_id_idx').on(table.pageId),
-      // Drizzle doesn't (yet) expose a first-class builder for ivfflat/hnsw.
-      // Export raw SQL helpers you can include in a migration if desired:
-      // CREATE INDEX IF NOT EXISTS wiki_chunks_embedding_ivf
-      //   ON wiki_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
-      //
-      // Example migration helper (optional):
       embeddingIvfIdx: sql`
         DO $$
         BEGIN

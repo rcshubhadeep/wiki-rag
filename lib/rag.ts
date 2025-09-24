@@ -11,8 +11,6 @@ const CHAT_MODEL = process.env.CHAT_MODEL || 'gpt-4o-mini';
 
 /**
  * Retrieve top-k chunks for a page using pgvector cosine distance.
- * Drizzle doesn't have first-class vector ops yet, so we use `sql` fragments
- * for the distance/order-by expression while keeping the rest in Drizzle style.
  */
 export async function retrieveChunks(
   pageId: number,
