@@ -11,7 +11,7 @@ You need to have:
 - An OpenAI API Key
 
 
-First create a file in the ROOT directory of your project. Named `.env.local` 
+First create a file in the ROOT directory of your project. Named `.env` 
 
 Copy paste the following (DO NOT forget to replace the value of `OPENAI_API_KEY` with your own)
 
