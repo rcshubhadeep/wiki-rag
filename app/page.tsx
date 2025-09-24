@@ -1,103 +1,189 @@
-import Image from "next/image";
+'use client';
+import { useEffect, useState } from 'react';
+
+type SavedPage = {
+  id: number;
+  url: string;
+  title: string | null;
+  createdAt?: string;
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [url, setUrl] = useState('');
+  const [pageId, setPageId] = useState<number | null>(null);
+  const [q, setQ] = useState('');
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([]);
+  const [pages, setPages] = useState<SavedPage[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [asking, setAsking] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  async function refreshPages() {
+    setLoadingPages(true);
+    try {
+      const res = await fetch('/api/pages', { method: 'GET' });
+      const json: { pages: SavedPage[] } = await res.json();
+      setPages(Array.isArray(json?.pages) ? json.pages : []);
+    } catch {
+      setPages([]);
+    } finally {
+      setLoadingPages(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshPages();
+  }, []);
+
+  async function ingest() {
+    setIngesting(true);
+    try {
+      const res = await fetch('/api/ingest', { method: 'POST', body: JSON.stringify({ url }) });
+      const json = await res.json();
+      if (json.pageId) {
+        setPageId(json.pageId);
+        await refreshPages();
+      }
+    } finally {
+      setIngesting(false);
+    }
+  }
+
+  async function ask() {
+    if (!pageId || !q) return;
+    setAsking(true);
+    try {
+      const userMsg = { role: 'user' as const, text: q };
+      setMessages((m) => [...m, userMsg]);
+      setQ('');
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify({ pageId, question: userMsg.text }),
+      });
+      const json = await res.json();
+      setMessages((m) => [...m, { role: 'assistant', text: json.answer ?? '(no answer)' }]);
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <main className="max-w-3xl mx-auto p-6 space-y-6 text-gray-900 dark:text-gray-100">
+      <h1 className="text-2xl font-semibold">Wikipedia RAG (pgvector)</h1>
+
+      {/* Ingest */}
+      <div className="flex gap-2">
+        <input
+          className="flex-1 border rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-500
+                     dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-400 dark:border-gray-700"
+          placeholder="https://en.wikipedia.org/wiki/Artificial_intelligence"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <button
+          onClick={ingest}
+          className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black"
+          disabled={ingesting}
+        >
+          {ingesting ? 'Ingesting…' : 'Ingest'}
+        </button>
+      </div>
+
+      {/* Saved pages */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Saved pages</h2>
+          <button
+            onClick={refreshPages}
+            className="text-sm px-3 py-1 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+            disabled={loadingPages}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {loadingPages ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {pages.length === 0 ? (
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            No pages yet. Ingest a Wikipedia URL above to get started.
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-800 rounded border border-gray-200 dark:border-gray-800">
+            {pages.map((p) => {
+              const selected = p.id === pageId;
+              return (
+                <li
+                  key={p.id}
+                  className={`p-3 cursor-pointer transition-colors ${
+                    selected
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={() => {
+                    setPageId(p.id);
+                    setMessages([]); // start fresh when switching pages
+                  }}
+                  title={p.url}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {p.title || p.url.replace(/^https?:\/\//, '')}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                        {p.url}
+                      </div>
+                    </div>
+                    {selected && (
+                      <span className="text-xs px-2 py-1 rounded bg-blue-600 text-white">
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* Chat */}
+      {pageId && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-500
+                         dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-400 dark:border-gray-700"
+              placeholder="Ask about this page..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <button
+              onClick={ask}
+              className="px-4 py-2 rounded bg-black text-white dark:bg-white dark:text-black"
+              disabled={asking}
+            >
+              {asking ? 'Asking…' : 'Ask'}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {messages.map((m, i) => {
+              const bubbleBase =
+                'p-3 rounded border leading-relaxed whitespace-pre-wrap break-words';
+              const bubbleTheme =
+                m.role === 'user'
+                  ? 'bg-gray-100 text-gray-900 border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
+                  : 'bg-gray-50 text-gray-900 border-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-700';
+              return (
+                <div key={i} className={`${bubbleBase} ${bubbleTheme}`}>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{m.role}</div>
+                  <div>{m.text}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
